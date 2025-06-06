@@ -1,4 +1,5 @@
 from sqlalchemy import create_engine, text
+import final_movie
 
 # Define the database URL
 DB_URL = "sqlite:///movies.db"
@@ -23,24 +24,23 @@ def create_database():
 def list_movies():
     """Retrieve all movies from the database."""
     with engine.connect() as connection:
-        result = connection.execute(text("SELECT title, year, rating FROM movies"))
+        result = connection.execute(text("SELECT title, year, rating, poster_url FROM movies"))
         movies = result.fetchall()
 
-    return {row[0]: {"year": row[1], "rating": row[2]} for row in movies}
+    return {row[0]: {"year": row[1], "rating": row[2], "poster_url": row[3]} for row in movies}
 
 
-def add_movie(title, year, rating, poster_url):
+def add_movie(title, year, rating, poster_url, movies):
     """Add a new movie to the database."""
-    try:
-        with engine.connect() as connection:
-            # Use the execute method to run the query, passing the parameters as a dictionary
+    with engine.connect() as connection:
+        try:
             connection.execute(text("INSERT INTO movies (title, year, rating, poster_url) VALUES (:title, :year, :rating, :poster_url)"),
                                {"title": title, "year": year, "rating": rating, "poster_url": poster_url})
-
             connection.commit()
+            final_movie.list_movies(movies)
             print(f"Movie '{title}' added successfully.")
-    except Exception as e:
-        print(f"Error: {e}")
+        except Exception as e:
+            print(f"Error: {e}")
 
 
 def delete_movie(title):

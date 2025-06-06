@@ -7,7 +7,9 @@ import matplotlib.pyplot as plt
 from colorama import Fore
 
 import movie_storage_sql as storage
+import generate_html
 from fetch_data import fetch_movie_by_title
+
 
 colors = {
     'error': Fore.RED,
@@ -35,7 +37,9 @@ def choose_menu(movies):
             "8. Movies sorted by rating",
             "9. Movies sorted by year",
             "10. Filter movies",
-            "11. Create histogram"]
+            "11. Create histogram",
+            "12. Generate website"]
+
     while True:
         print(colors['menu'] + "Menu:\n" + "\n".join(menu) + "\n")
         try:
@@ -65,6 +69,8 @@ def choose_menu(movies):
                 print(filter_movies(movies))
             elif user_choice == "11":
                 print(create_histogram(movies))
+            elif user_choice == "12":
+                print(generate_website(movies))
 
             input(colors['input'] + "Press enter to proceed" + "\n")
         except ValueError:
@@ -122,10 +128,12 @@ def add_movie(movies):
         year_to_add = movie_data['Year']
         poster_image_url = movie_data['Poster']
 
-        storage.add_movie(movie_to_add, rate_to_add, year_to_add, poster_image_url)
+        storage.add_movie(movie_to_add, year_to_add, rate_to_add, poster_image_url, movies)
 
         storage.list_movies()
-        return f"{colors['info']}Movie menu successfully add {movie_to_add}"
+        list_movies(movies)
+
+        return f"{colors['info']}Movie menu successfully add {movie_to_add}",
     except Exception as e:
         return f"{colors['error']}Something went wrong while saving: {str(e)}"
 
@@ -326,16 +334,23 @@ def create_histogram(movies):
         plt.clf()
 
         return f"{colors['info']}Histogram saved as {output_file}"
-    except Exception:
-        print(f"{colors['error']} Something went wrong while saving the histogram.")
+    except Exception as e:
+        print(f"{colors['error']} Something went wrong while saving the histogram: {e}.")
 
 
-def main():
-    """Entry point of the program. Initializes the movie database and starts the menu loop."""
-    print(colors['title'] + "********** My Movies Database **********" + "\n")
-    movies = storage.list_movies()
-    choose_menu(movies)
+def generate_website(movies):
+    """
+    Call the function which generates the movies.html file
+    if html placeholder is created correct.
+    :return:
+    """
+    html = generate_html.generate_html(movies)
+    if html:
+        generate_html.write_html_to_file(movies)
+        return f"The html got created successfully and saved in the file movies.html"
+    else:
+        return "Error: a problem occurred while creating html content."
 
 
-if __name__ == "__main__":
-    main()
+
+
