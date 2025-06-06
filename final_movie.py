@@ -5,7 +5,9 @@ import difflib
 import matplotlib.pyplot as plt
 
 from colorama import Fore
-import persistant_movie_storage
+
+import movie_storage_sql as storage
+from fetch_data import fetch_movie_by_title
 
 colors = {
     'error': Fore.RED,
@@ -16,21 +18,11 @@ colors = {
 }
 
 
-def main():
-    """Entry point of the program. Initializes the movie database and starts the menu loop."""
-    print(colors['title'] + "********** My Movies Database **********" + "\n")
-    movies = persistant_movie_storage.get_movies()
-    choose_menu(movies)
-
-
-
 def choose_menu(movies):
     """
     Displays the main menu and handles user input
     to perform various operations on the movie database.
-
-    Args:
-        movies (dict): The movie database.
+    Args:movies (dict): The movie database.
     """
     menu = ["0. Exit",
             "1. List movies",
@@ -83,31 +75,22 @@ def choose_menu(movies):
 def list_movies(movies):
     """
     Lists all movies in the database along with their ratings and release years.
-
-    Args:
-        movies (dict): The movie database.
-
-    Returns:
-        str: A formatted string listing all movies with their details.
+    Args:movies (dict): The movie database.
+    Returns:str: A formatted string listing all movies with their details.
     """
     movie_list = []
 
     for title, details in movies.items():
-        movie_list.append(f"{title}: {details['Rating']} -- (Year:{details['Year']})")
+        movie_list.append(f"{title} ({details['year']}) -- Rating: {details['rating']}")
     movie_output = '\n'.join(movie_list)
 
     return f"{colors['info']}Total count of Movies:{len(movie_list)}\n{movie_output}"
 
 
-def add_movie(movies):
+def input_movie(movies):
     """
-    Adds a new movie to the database after prompting the user for details.
-
-    Args:
-        movies (dict): The movie database.
-
-    Returns:
-        str: A message indicating the result of the operation.
+    Prompt the user to input a movie title.
+    :return: The movie title entered by the user.
     """
     movie_to_add = input("Enter Movie name you want to add: ")
 
@@ -117,40 +100,47 @@ def add_movie(movies):
         return (f"{colors['error']}No empty Input allowed."
                 f" Your Movie needs to be at least one char."
                 f" long! Going back to menu...")
+    else:
+        return movie_to_add
+
+
+def add_movie(movies):
+    """
+    Adds a new movie to the database.
+    Args:movies (dict): The movie database.
+    Returns:str: A message indicating the result of the operation.
+    """
+    title = input_movie(movies)
+    movie_data = fetch_movie_by_title(title)
+
+    if not movie_data:
+        return "Error: Movie not found or failed to fetch data."
 
     try:
-        rate_to_add = float(input("Enter a rate to the chosen Movie (0-10): "))
-        year_to_add = int(input("Enter the Year of the Movie: "))
-        movies[movie_to_add] = {"Rating": rate_to_add, "Year": year_to_add}
+        movie_to_add = movie_data['Title']
+        rate_to_add = movie_data['Ratings'][0]['Value']
+        year_to_add = movie_data['Year']
+        poster_image_url = movie_data['Poster']
 
+        storage.add_movie(movie_to_add, rate_to_add, year_to_add, poster_image_url)
 
-
-    except ValueError:
-        return f"{colors['error']}Invalid input. Rating must be a number (e.g. 8.5), year must be a number(e.g. 7)."
-
-    try:
-        persistant_movie_storage.add_movie(movie_to_add, rate_to_add, year_to_add)
+        storage.list_movies()
+        return f"{colors['info']}Movie menu successfully add {movie_to_add}"
     except Exception as e:
         return f"{colors['error']}Something went wrong while saving: {str(e)}"
-
-    return f"{colors['info']}Movie menu successfully add {movie_to_add}"
 
 
 def delete_movie(movies):
     """
       Deletes a movie from the database based on user input.
-
-      Args:
-          movies (dict): The movie database.
-
-      Returns:
-          str: A message indicating the result of the operation.
+      Args: movies (dict): The movie database.
+      Returns: str: A message indicating the result of the operation.
       """
     movie_to_del = input("Enter a Movie you want to delete from the Movie menu: ")
 
     if movie_to_del in movies:
         del movies[movie_to_del]
-        persistant_movie_storage.delete_movie(movie_to_del)
+        storage.delete_movie(movie_to_del)
         return f"{colors['info']}The movie {movie_to_del} was deleted successfully"
     else:
         return f"{colors['error']} The Movie doesnt exist."
@@ -159,12 +149,8 @@ def delete_movie(movies):
 def update_movie(movies):
     """
     Updates the rating of an existing movie in the database.
-
-    Args:
-        movies (dict): The movie database.
-
-    Returns:
-        str: A message indicating the result of the operation.
+    Args:  movies (dict): The movie database.
+    Returns: str: A message indicating the result of the operation.
     """
     movie_to_update = input("Enter a Movie to update its rate: ")
 
@@ -172,7 +158,7 @@ def update_movie(movies):
         try:
             enter_new_rate = float(input('Enter a new rate: '))
             movies[movie_to_update]['Rating'] = enter_new_rate
-            persistant_movie_storage.update_movie(movie_to_update, enter_new_rate)
+            storage.update_movie(movie_to_update, enter_new_rate)
             return (f"{colors['info']}The rating of the movie '{movie_to_update}' "
                     f"was successfully updated.")
         except ValueError:
@@ -184,12 +170,8 @@ def update_movie(movies):
 def stats(movies):
     """
     Calculates and displays statistical information about the movie ratings.
-
-    Args:
-        movies (dict): The movie database.
-
-    Returns:
-        str: A formatted string containing average, median, best, and worst movie ratings.
+    Args: movies (dict): The movie database.
+    Returns: str: A formatted string containing average, median, best, and worst movie ratings.
     """
     rate_list = [details['Rating'] for details in movies.values()]
 
@@ -207,18 +189,14 @@ def stats(movies):
     return (f"{colors['info']}The average rating is: {average_rate:.2f}\n"
             f"The median rating is: {median_rate:.2f}\n"
             f"The best movie(s):\n" + '\n'.join(best_movies) + "\n"
-                                                               f"The worst movie(s):\n" + '\n'.join(worst_movies))
+            f"The worst movie(s):\n" + '\n'.join(worst_movies))
 
 
 def random_movie(movies):
     """
     Selects and displays a random movie from the database.
-
-    Args:
-        movies (dict): The movie database.
-
-    Returns:
-        str: A formatted string with the selected movie's title and rating.
+    Args: movies (dict): The movie database.
+    Returns: str: A formatted string with the selected movie's title and rating.
     """
     title, details = random.choice(list(movies.items()))
     return f"{colors['info']}The movie of the night: {title}, Rating: {details['Rating']}"
@@ -228,12 +206,8 @@ def search_movie(movies):
     """
     Searches for movies containing a user-provided substring in their titles.
     Suggests similar titles if no exact matches are found.
-
-    Args:
-        movies (dict): The movie database.
-
-    Returns:
-        str: A formatted string with search results or suggestions.
+    Args: movies (dict): The movie database.
+    Returns: str: A formatted string with search results or suggestions.
     """
     user_search = input("Enter a part of the movie title: ")
     potential_matches = [(title, details) for title, details in movies.items()
@@ -257,12 +231,8 @@ def search_movie(movies):
 def sorted_movies_by_rate(movies):
     """
     Sorts and displays movies by their ratings in descending order.
-
-    Args:
-        movies (dict): The movie database.
-
-    Returns:
-        str: A formatted string listing movies sorted by rating.
+    Args: movies (dict): The movie database.
+    Returns: str: A formatted string listing movies sorted by rating.
     """
     sorted_movies = dict(sorted(movies.items(), key=lambda item: item[1]['Rating'], reverse=True))
     output_descending_order = "\n".join([f"{title}, Rating: {details['Rating']}, Year: {details['Year']}"
@@ -273,11 +243,8 @@ def sorted_movies_by_rate(movies):
 def sorted_movies_by_year(movies):
     """
     Asks the user for descending or ascending order and Sorts the movies by year in the order chosen by the user.
-
-    Args:
-        movies (dict)
-    Returns:
-        str: A formatted string Listing movies sorted by year.
+    Args: movies (dict)
+    Returns: str: A formatted string Listing movies sorted by year.
     """
     user_order = input("If you would like an descending order, enter 'd'.\n"
                        "If you would like an ascending order, enter 'a': ")
@@ -302,11 +269,8 @@ def filter_movies(movies):
     Asks the user for minimal rating, start and end year,
     for filtering the possible movies. If an input leaves empty,
     no limitation on that filter.
-
-    Args:
-         movies(dict)
-    Returns:
-         the filtered movies with rating and year
+    Args: movies(dict)
+    Returns: the filtered movies with rating and year
     """
     filtered_movies = []
 
@@ -342,12 +306,8 @@ def filter_movies(movies):
 def create_histogram(movies):
     """
     Creates and saves a histogram of movie ratings.
-
-    Args:
-        movies (dict): The movie database.
-
-    Returns:
-        str: A message indicating the histogram has been saved.
+    Args: movies (dict): The movie database.
+    Returns: str: A message indicating the histogram has been saved.
     """
     try:
         output_file = input("Enter a filename to save the histogram (e.g., 'histogram.png'): ")
@@ -368,6 +328,14 @@ def create_histogram(movies):
         return f"{colors['info']}Histogram saved as {output_file}"
     except Exception:
         print(f"{colors['error']} Something went wrong while saving the histogram.")
+
+
+def main():
+    """Entry point of the program. Initializes the movie database and starts the menu loop."""
+    print(colors['title'] + "********** My Movies Database **********" + "\n")
+    movies = storage.list_movies()
+    choose_menu(movies)
+
 
 if __name__ == "__main__":
     main()
