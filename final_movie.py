@@ -11,6 +11,7 @@ import generate_html
 from fetch_data import fetch_movie_by_title
 
 
+
 colors = {
     'error': Fore.RED,
     'info': Fore.MAGENTA,
