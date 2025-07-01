@@ -165,7 +165,7 @@ def update_movie(movies):
     if movie_to_update in movies:
         try:
             enter_new_rate = float(input('Enter a new rate: '))
-            movies[movie_to_update]['Rating'] = enter_new_rate
+            movies[movie_to_update]['rating'] = enter_new_rate
             storage.update_movie(movie_to_update, enter_new_rate)
             return (f"{colors['info']}The rating of the movie '{movie_to_update}' "
                     f"was successfully updated.")
@@ -181,23 +181,62 @@ def stats(movies):
     Args: movies (dict): The movie database.
     Returns: str: A formatted string containing average, median, best, and worst movie ratings.
     """
-    rate_list = [details['Rating'] for details in movies.values()]
+    rate_list = []
+    for details in movies.values():
+        try:
+            # Check if the rating is a string in 'X.X/10' format or already a float
+            rating = details['rating']
+            if isinstance(rating, str) and '/' in rating:
+                # If it's a string with '/10', extract the numeric value
+                numeric_rating = float(rating.split('/')[0])
+            elif isinstance(rating, (int, float)):
+                # If it's already a number, use it directly
+                numeric_rating = float(rating)
+            else:
+                # If the rating is neither string nor numeric, skip it
+                print(f"Warning: Invalid rating format for movie {details.get('title', 'Unknown')}. Skipping.")
+                continue
+
+            rate_list.append(numeric_rating)
+
+        except (ValueError, KeyError) as e:
+            print(f"Error processing movie {details.get('title', 'Unknown')}: {e}")
+
+    if not rate_list:  # If no valid ratings were found
+        return f"{colors['error']}No valid ratings found to calculate statistics."
 
     average_rate = statistics.mean(rate_list)
     median_rate = statistics.median(rate_list)
-
     max_rating = max(rate_list)
     min_rating = min(rate_list)
 
-    best_movies = [f"{title}, {details['Rating']}"
-                   for title, details in movies.items() if details['Rating'] == max_rating]
-    worst_movies = [f"{title}, {details['Rating']}"
-                    for title, details in movies.items() if details['Rating'] == min_rating]
+    # Prepare the lists for best and worst movies
+    best_movies = [f"{title}, {details['rating']}"
+                   for title, details in movies.items() if get_numeric_rating(details['rating']) == max_rating]
+    worst_movies = [f"{title}, {details['rating']}"
+                    for title, details in movies.items() if get_numeric_rating(details['rating']) == min_rating]
 
     return (f"{colors['info']}The average rating is: {average_rate:.2f}\n"
             f"The median rating is: {median_rate:.2f}\n"
             f"The best movie(s):\n" + '\n'.join(best_movies) + "\n"
             f"The worst movie(s):\n" + '\n'.join(worst_movies))
+
+
+def get_numeric_rating(rating):
+    """
+    Helper function to get numeric rating value from string or float.
+    :param rating: The movie rating (either string in 'X.X/10' format or a numeric value).
+    :return: The numeric value of the rating.
+    """
+    if isinstance(rating, str) and '/' in rating:
+        # Extract the numeric part before '/10'
+        return float(rating.split('/')[0])
+    elif isinstance(rating, (int, float)):
+        # Return the numeric value directly
+        return float(rating)
+    else:
+        # Return 0 if the rating format is invalid
+        return 0
 
 
 def random_movie(movies):
@@ -207,7 +246,7 @@ def random_movie(movies):
     Returns: str: A formatted string with the selected movie's title and rating.
     """
     title, details = random.choice(list(movies.items()))
-    return f"{colors['info']}The movie of the night: {title}, Rating: {details['Rating']}"
+    return f"{colors['info']}The movie of the night: {title}, Rating: {details['rating']}"
 
 
 def search_movie(movies):
@@ -222,7 +261,7 @@ def search_movie(movies):
                          if user_search.lower() in title.lower()]
 
     if potential_matches:
-        return "\n".join([f"{colors['info']}{title}, Rating: {details['Rating']}, Year: {details['Year']}"
+        return "\n".join([f"{colors['info']}{title}, Rating: {details['rating']}, Year: {details['year']}"
                           for title, details in potential_matches])
 
     titles_list = list(movies.keys())
@@ -242,8 +281,8 @@ def sorted_movies_by_rate(movies):
     Args: movies (dict): The movie database.
     Returns: str: A formatted string listing movies sorted by rating.
     """
-    sorted_movies = dict(sorted(movies.items(), key=lambda item: item[1]['Rating'], reverse=True))
-    output_descending_order = "\n".join([f"{title}, Rating: {details['Rating']}, Year: {details['Year']}"
+    sorted_movies = dict(sorted(movies.items(), key=lambda item: get_numeric_rating(item[1]['rating']), reverse=True))
+    output_descending_order = "\n".join([f"{title}, Rating: {details['rating']}, Year: {details['year']}"
                                          for title, details in sorted_movies.items()])
     return f"{colors['info']}Movies sorted by descending rating:\n{output_descending_order}"
 
@@ -257,14 +296,14 @@ def sorted_movies_by_year(movies):
     user_order = input("If you would like an descending order, enter 'd'.\n"
                        "If you would like an ascending order, enter 'a': ")
     if user_order.lower() == "d":
-        sorted_movies = dict(sorted(movies.items(), key=lambda item: item[1]['Year'], reverse=True))
-        output_descending_order = "\n".join([f"{title}, Rating: {details['Rating']}, Year: {details['Year']}"
+        sorted_movies = dict(sorted(movies.items(), key=lambda item: item[1]['year'], reverse=True))
+        output_descending_order = "\n".join([f"{title}, Rating: {details['rating']}, Year: {details['year']}"
                                              for title, details in sorted_movies.items()])
         return f"{colors['info']}Movies sorted by descending year:\n{output_descending_order}"
 
     elif user_order.lower() == "a":
-        sorted_movies = dict(sorted(movies.items(), key=lambda item: item[1]['Year'], reverse=False))
-        output_ascending_order = "\n".join([f"{title}, Rating: {details['Rating']}, Year: {details['Year']}"
+        sorted_movies = dict(sorted(movies.items(), key=lambda item: item[1]['year'], reverse=False))
+        output_ascending_order = "\n".join([f"{title}, Rating: {details['rating']}, Year: {details['year']}"
                                              for title, details in sorted_movies.items()])
         return f"{colors['info']}Movies sorted by ascending year:\n{output_ascending_order}"
     else:
@@ -305,8 +344,8 @@ def filter_movies(movies):
         end_year = float('inf')
 
     for title, detail in movies.items():
-        if start_year <= detail['Year'] <= end_year and detail['Rating'] >= minimum_rating:
-            filtered_movies.append(f"{title} ({detail['Year']}): {detail['Rating']}")
+        if start_year <= detail['year'] <= end_year and get_numeric_rating(['rating']) >= minimum_rating:
+            filtered_movies.append(f"{title} ({detail['year']}): {detail['rating']}")
 
     return f"{colors['info']}{'\n'.join(filtered_movies)}"
 
@@ -319,7 +358,7 @@ def create_histogram(movies):
     """
     try:
         output_file = input("Enter a filename to save the histogram (e.g., 'histogram.png'): ")
-        ratings = [details['Rating'] for details in movies.values()]
+        ratings = [details['rating'] for details in movies.values()]
 
         # Plot the histogram
         plt.hist(ratings, bins=5, color='lavender', edgecolor='black')
