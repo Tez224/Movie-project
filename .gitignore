@@ -6,5 +6,6 @@ __pycache__/
 .env
 
 # Ignore the SQLite database file
-movies.db
+data/
+data/movies.db
 

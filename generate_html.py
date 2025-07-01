@@ -39,7 +39,7 @@ def get_html():
     :return: The template HTML content.
     """
     try:
-        with open("index_template.html", "r") as file:
+        with open("templates/index_template.html", "r") as file:
             return file.read()
     except Exception as e:
         print(f"An error occurred while reading the template file: {e}")
@@ -54,9 +54,9 @@ def write_html_to_file(movies):
     html_content = generate_html(movies)
 
     try:
-        with open("movies.html", "w") as file:
+        with open("templates/movies.html", "w") as file:
             file.write(html_content)
-        webbrowser.open(f"file://{os.path.realpath('movies.html')}", new=2)
+        webbrowser.open(f"file://{os.path.realpath('templates/movies.html')}", new=2)
         print("HTML content has been written to movies.html")
     except Exception as e:
         print(f"Something went wrong while writing the HTML to the file: {e}")
