@@ -131,7 +131,6 @@ def add_movie(movies):
 
         storage.add_movie(movie_to_add, year_to_add, rate_to_add, poster_image_url, movies)
 
-        storage.list_movies()
         list_movies(movies)
 
         return f"{colors['info']}Movie menu successfully add {movie_to_add}",
