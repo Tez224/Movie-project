@@ -345,7 +345,7 @@ def filter_movies(movies):
         end_year = float('inf')
 
     for title, detail in movies.items():
-        if start_year <= detail['year'] <= end_year and get_numeric_rating(['rating']) >= minimum_rating:
+        if start_year <= detail['year'] <= end_year and get_numeric_rating(detail['rating']) >= minimum_rating:
             filtered_movies.append(f"{title} ({detail['year']}): {detail['rating']}")
 
     return f"{colors['info']}{'\n'.join(filtered_movies)}"
